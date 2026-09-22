@@ -13,6 +13,7 @@
 
 
 ### Extrait B – Route API de recherche d'annonces
+### Correction dans : src/routes/listing.js
 
 | Problème | Gravité | Correction proposée |
 |---|---|---|
@@ -22,3 +23,19 @@
 | Les paramètres `city` et `page` ne sont pas validés. Une ville vide ou une valeur de page invalide peut produire un comportement incorrect. | Moyenne | Vérifier que `city` est une chaîne non vide et que `page` est un entier positif. |
 | La route ne gère aucune erreur de base de données. Une erreur PostgreSQL peut remonter jusqu'à Express sans réponse contrôlée. | Élevée | Encadrer les accès à la base avec `try/catch` et retourner une erreur HTTP 500 générique. |
 | `SELECT *` récupère potentiellement des colonnes inutiles et augmente la quantité de données transférées entre PostgreSQL et l'API. | Faible à moyenne | Sélectionner uniquement les colonnes nécessaires lorsque le schéma est connu. |
+
+### Extrait C – Webhook de confirmation de paiement
+### Correction dans : src/routes/paymentWebhook.js et sql/payment_webhook.sql
+
+| Problème | Gravité | Correction proposée |
+|---|---|---|
+| Le webhook n'est pas idempotent. Si le prestataire réessaie le même événement, l'email et la notification CRM peuvent être envoyés plusieurs fois. | Critique | Utiliser un identifiant unique d'événement et enregistrer les événements déjà traités. Ignorer proprement un événement déjà reçu. |
+| La réponse HTTP 200 n'est envoyée qu'après l'envoi de l'email et l'appel au CRM. Le CRM peut prendre jusqu'à 8 secondes, ce qui rapproche dangereusement le traitement de la limite de 10 secondes. | Élevée | Ne faire dans le webhook que les opérations nécessaires et durables, puis déléguer les appels externes à un traitement asynchrone. |
+| Si `sendEmail` ou `crm.notifyPayment` échoue, la route peut retourner une erreur au prestataire alors que le paiement a déjà été marqué `paid`. Le retry rejouera alors les traitements. | Critique | Découpler la mise à jour du paiement des effets secondaires et stocker ces effets dans une file/outbox pouvant être rejouée indépendamment. |
+| Le corps du webhook n'est pas validé avant utilisation. Des champs comme `booking_id` ou `customer_email` peuvent être absents ou invalides. | Moyenne | Vérifier les champs obligatoires avant traitement et rejeter les événements invalides. |
+| Aucune vérification de l'authenticité du webhook n'apparaît dans l'extrait. Un tiers pourrait potentiellement appeler cette route et marquer une réservation comme payée. | Critique | Vérifier la signature du webhook ou le mécanisme d'authentification fourni par le prestataire avant le traitement. |
+| La mise à jour du paiement et l'enregistrement du traitement du webhook ne sont pas atomiques. Une erreur entre plusieurs opérations peut laisser un état incohérent. | Élevée | Utiliser une transaction SQL pour enregistrer l'événement, modifier la réservation et créer les tâches asynchrones. |
+
+** Pour l'idempotence, la correction suppose que le prestataire fournit un identifiant
+unique par événement (`event.id`). Si ce n'est pas le cas, il faudrait utiliser la clé
+d'idempotence ou l'identifiant équivalent documenté par le prestataire. **

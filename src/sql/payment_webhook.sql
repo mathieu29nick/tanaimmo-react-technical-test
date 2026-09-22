@@ -1,0 +1,14 @@
+CREATE TABLE webhook_events (
+  event_id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE payment_outbox (
+  id BIGSERIAL PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  task_type TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  processed_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
