@@ -39,3 +39,32 @@
 ** Pour l'idempotence, la correction suppose que le prestataire fournit un identifiant
 unique par événement (`event.id`). Si ce n'est pas le cas, il faudrait utiliser la clé
 d'idempotence ou l'identifiant équivalent documenté par le prestataire. **
+
+## Partie 3 – Gestion d'incident
+
+### 3.1 – Scénario
+
+À 21h40, je commence par vérifier que l'alerte est réelle : taux de 5xx, latence, volume de requêtes, CPU/mémoire de l'API, connexions PostgreSQL et erreurs applicatives récentes. Je regarde également s'il y a eu un déploiement ou un changement de configuration juste avant l'incident.
+
+Comme la campagne SMS a commencé dix minutes plus tôt et que l'extrait B est en production, ma première hypothèse est une saturation liée à la montée brutale du trafic. La route `/api/listings` est particulièrement suspecte : elle ne pagine pas les résultats et exécute deux requêtes supplémentaires par annonce, ce qui peut provoquer un grand nombre de requêtes SQL et saturer PostgreSQL.
+
+Dans les 5 premières minutes, je vérifie les logs des erreurs 5xx, les endpoints les plus lents, le nombre de connexions actives en base et les requêtes lentes. Je cherche notamment à confirmer si `/api/listings` représente une part importante de la latence.
+
+Je préviens rapidement le client que l'incident est confirmé, que l'équipe est en train d'identifier le point de saturation et que je vais privilégier le rétablissement du service avant l'analyse complète. Je lui donne un nouveau point de situation dans 10 à 15 minutes.
+
+Même sans avoir encore identifié la cause exacte, je cherche à réduire la charge : limitation temporaire du trafic si possible, réduction du nombre d'éléments retournés par la route de recherche, désactivation temporaire d'une fonctionnalité non critique ou mise en cache d'une réponse très sollicitée. Si un déploiement récent est suspect, j'envisage également un rollback.
+
+Si l'extrait B est confirmé comme cause, je déploie la correction avec pagination et suppression du N+1, après un test rapide ciblé. Je continue ensuite à surveiller le taux de 5xx, la latence et PostgreSQL jusqu'au retour à un niveau normal.
+
+Une fois le service stabilisé, j'informe le client de la reprise et je reste prudent sur la cause tant qu'elle n'est pas confirmée.
+
+Le lendemain, je fais une analyse post-incident : timeline, cause racine, impact, mesures prises et améliorations. J'ajoute des tests de charge sur les endpoints critiques, je vérifie les index PostgreSQL, les limites du pool de connexions et je mets en place les alertes manquantes avant la prochaine campagne marketing.
+
+### 3.2 – Alertes avant le lancement
+
+| Alerte | Seuil | Outil |
+|---|---|---|
+| Taux d'erreurs HTTP 5xx | > 2 % pendant 5 minutes | Sentry |
+| Latence API | p95 > 2 secondes pendant 5 minutes | Prometheus + Grafana Alerting |
+| Pool PostgreSQL | > 80 % des connexions utilisées pendant 5 minutes | Prometheus + Grafana Alerting |
+| CPU / mémoire de l'API | > 85 % pendant 5 minutes | Prometheus + Grafana Alerting |
