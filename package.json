@@ -1,0 +1,21 @@
+{
+  "name": "tanaimmo-react-technical-test",
+  "version": "1.0.0",
+  "description": "Technical test - React / Node.js - TanàImmo",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:watch": "node --test --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mathieu29nick/tanaimmo-react-technical-test.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mathieu29nick/tanaimmo-react-technical-test/issues"
+  },
+  "homepage": "https://github.com/mathieu29nick/tanaimmo-react-technical-test#readme"
+}
